@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Estoque da Casa</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;min-height:100vh}
+.hd{background:#fff;padding:1rem 1.25rem 0.75rem;border-bottom:1px solid #e8e8e8;position:sticky;top:0;z-index:10}
+.hd-row{display:flex;align-items:center;justify-content:space-between}
+.hd h1{font-size:17px;font-weight:600;color:#1a1a1a}
+.hd-sub{display:flex;align-items:center;gap:8px;margin-top:3px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#639922;display:inline-block;margin-right:4px;vertical-align:middle;flex-shrink:0}
+.sync-dot.err{background:#E24B4A}
+.sync-dot.loading{background:#BA7517;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#sync-txt{font-size:12px;color:#888}
+.hd-btns{display:flex;gap:6px}
+.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid #e8e8e8;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#555}
+.icon-btn:active{background:#f0f0f0}
+.tabs{display:flex;gap:4px;padding:.5rem 1rem 0;background:#fff;border-bottom:1px solid #e8e8e8;overflow-x:auto}
+.tab{padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;border:none;background:transparent;color:#888}
+.tab.active{background:#f0f0f0;color:#1a1a1a;font-weight:500}
+/* Banner de loading */
+.loading-banner{background:#E6F1FB;border-bottom:1px solid #B5D4F4;padding:10px 1.25rem;font-size:13px;color:#185FA5;display:flex;align-items:center;gap:8px}
+.loading-banner.hidden{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:14px;height:14px;border:2px solid #B5D4F4;border-top-color:#185FA5;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:1rem}
+.stat{background:#fff;border-radius:10px;padding:.7rem .8rem;border:1px solid #eee}
+.stat-lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.4px}
+.stat-val{font-size:20px;font-weight:600;color:#1a1a1a;margin-top:2px}
+.stat-val.warn{color:#E24B4A}
+/* Filtros */
+.filter-row{display:flex;gap:5px;padding:0 1rem .6rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.chip{padding:4px 12px;border-radius:20px;border:1px solid #ddd;font-size:12px;cursor:pointer;white-space:nowrap;background:#fff;color:#666}
+.chip.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+/* Toolbar */
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 1rem .5rem}
+.toolbar span{font-size:13px;color:#888}
+.add-btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#333;font-weight:500}
+.add-btn:active{background:#f0f0f0}
+/* Itens */
+.items{padding:0 1rem;display:flex;flex-direction:column;gap:6px;padding-bottom:5rem}
+.card{background:#fff;border:1px solid #eee;border-radius:12px;padding:.75rem 1rem;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.card:active{background:#fafafa}
+.card.low{border-left:3px solid #E24B4A}
+.card.ok{border-left:3px solid #639922}
+.card-top{display:flex;align-items:center;justify-content:space-between}
+.item-name{font-size:14px;font-weight:500;color:#1a1a1a;flex:1;margin-right:8px}
+.qty-row{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.qb{width:30px;height:30px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#333;-webkit-tap-highlight-color:transparent}
+.qb:active{background:#f0f0f0}
+.qn{font-size:15px;font-weight:600;min-width:22px;text-align:center;color:#1a1a1a}
+.meta{font-size:11px;color:#999;margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px}
+.bdg-cat{background:#f5f5f5;color:#666}
+.bdg-low{background:#FCEBEB;color:#A32D2D}
+.bdg-ok{background:#EAF3DE;color:#3B6D11}
+.empty{text-align:center;padding:3rem 1rem;color:#aaa;font-size:14px}
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:1.5rem 1.25rem 2.5rem;width:100%;max-width:500px}
+.modal-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 1rem}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:1rem;color:#1a1a1a}
+.fg{margin-bottom:.8rem}
+.fg label{display:block;font-size:12px;color:#888;margin-bottom:4px;font-weight:500}
+.fg input,.fg select{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#1a1a1a;-webkit-appearance:none}
+.fg input:focus,.fg select:focus{outline:none;border-color:#1a1a1a}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mbtns{display:flex;gap:8px;margin-top:1.2rem}
+.btn-p{flex:1;padding:13px;border-radius:10px;border:none;background:#1a1a1a;font-size:15px;cursor:pointer;font-weight:600;color:#fff}
+.btn-p:active{background:#333}
+.btn-c{padding:13px 16px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:15px;cursor:pointer;color:#666}
+.btn-d{padding:13px;border-radius:10px;border:1px solid #fcc;background:#FCEBEB;font-size:15px;cursor:pointer;color:#A32D2D}
+/* Script panel */
+.script-wrap{padding:1rem;padding-bottom:3rem;display:flex;flex-direction:column;gap:10px}
+.scard{background:#fff;border-radius:12px;padding:1rem 1.25rem;border:1px solid #eee}
+.scard h3{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:8px}
+.scard p{font-size:13px;color:#666;line-height:1.6;margin-bottom:8px}
+.scard a{color:#1a6ef5;text-decoration:none}
+.step-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#555;flex-shrink:0;margin-top:1px}
+.step-txt{font-size:13px;color:#555;line-height:1.55}
+.step-txt strong{color:#1a1a1a}
+.sbtn{width:100%;padding:11px;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:13px;cursor:pointer;color:#333;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;font-weight:500}
+.sbtn:active{background:#f5f5f5}
+.sbtn.green{border-color:#9FE1CB;background:#E1F5EE;color:#0F6E56}
+.notice{font-size:13px;padding:10px 12px;border-radius:10px;margin-top:6px;line-height:1.5}
+.notice.ok{background:#EAF3DE;color:#3B6D11}
+.notice.err{background:#FCEBEB;color:#A32D2D}
+.notice.info{background:#E6F1FB;color:#185FA5}
+/* FAB sincronizar */
+.fab{position:fixed;bottom:1.5rem;right:1.25rem;width:52px;height:52px;border-radius:50%;background:#1a1a1a;border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:50;-webkit-tap-highlight-color:transparent}
+.fab:active{background:#333;transform:scale(.95)}
+.fab.spin-anim{animation:spin .7s linear infinite}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="hd-row">
+    <div>
+      <h1>🏠 Estoque da Casa</h1>
+      <div class="hd-sub">
+        <span class="sync-dot err" id="sync-dot"></span>
+        <span id="sync-txt">Carregando...</span>
+      </div>
+    </div>
+    <div class="hd-btns">
+      <button class="icon-btn" onclick="carregarDaPlanilha()" title="Atualizar da planilha">↓</button>
+      <button class="icon-btn" onclick="switchTab('config')" title="Configurações">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('lista')">Estoque</button>
+  <button class="tab" onclick="switchTab('config')">Configurar</button>
+</div>
+
+<!-- ABA ESTOQUE -->
+<div id="tab-lista">
+  <div class="loading-banner hidden" id="loading-banner">
+    <div class="spinner"></div>
+    <span id="loading-msg">Carregando estoque da planilha...</span>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="filter-row" id="filters"></div>
+  <div class="toolbar">
+    <span id="count-lbl"></span>
+    <button class="add-btn" onclick="openModal()">+ Adicionar</button>
+  </div>
+  <div class="items" id="items-list"></div>
+</div>
+
+<!-- ABA CONFIG -->
+<div id="tab-config" style="display:none">
+  <div class="script-wrap">
+    <div class="scard" style="border-color:#9FE1CB;background:#F0FBF7">
+      <h3>✅ Conectado ao Google Planilhas</h3>
+      <p>Seu app está sincronizado. Quando outra pessoa abre o app, ela carrega automaticamente o estoque atualizado da planilha.</p>
+      <button class="sbtn green" onclick="abrirPlanilha()">🔗 Abrir planilha no Google</button>
+    </div>
+
+    <div class="scard">
+      <h3>📤 Enviar para outros moradores</h3>
+      <p>Mande este arquivo HTML pelo WhatsApp para cada morador. Como ele já vem com a URL configurada, todos se conectam à mesma planilha automaticamente.</p>
+      <p style="margin-top:4px"><strong>Como funciona:</strong><br>
+        • Ao abrir o app → carrega o estoque da planilha<br>
+        • Ao mudar quantidade → salva na planilha em 3s<br>
+        • Todos veem o mesmo estoque em tempo real ✓
+      </p>
+    </div>
+
+    <div class="scard">
+      <h3>🔄 Atualizar o Apps Script</h3>
+      <p>Se precisar reinstalar o script no Google Apps Script, copie o código abaixo. Ele suporta leitura e escrita.</p>
+      <button class="sbtn" onclick="copyScript()">📋 Copiar código do script</button>
+      <div id="copy-status"></div>
+    </div>
+
+    <div class="scard">
+      <h3>🔧 URL do script</h3>
+      <p>URL atual configurada:</p>
+      <div style="background:#f5f5f5;border-radius:8px;padding:8px 10px;font-size:11px;font-family:monospace;word-break:break-all;color:#555;margin-bottom:8px">
+        https://script.google.com/macros/s/AKfycbyxIwciGfeZ1TAPlt6T3lAhx99OI_6dBEB0_W2H_EHZaFXa7glnqxhsfeRNXSaG8ma2/exec
+      </div>
+      <input type="url" id="script-url-input" placeholder="Colar nova URL se precisar trocar..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:13px;margin-bottom:8px">
+      <button class="sbtn green" onclick="trocarUrl()">Salvar nova URL</button>
+      <div id="url-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ITEM -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modal-title">Adicionar item</h2>
+    <div class="fg"><label>Nome do item</label><input type="text" id="f-name" placeholder="Ex: Sabão em pó" autocomplete="off"></div>
+    <div class="fg2">
+      <div class="fg"><label>Qtd atual</label><input type="number" id="f-qty" value="1" min="0"></div>
+      <div class="fg"><label>Mínimo desejado</label><input type="number" id="f-min" value="1" min="0"></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Categoria</label>
+        <select id="f-cat">
+          <option>Limpeza</option><option>Higiene</option><option>Mercearia</option>
+          <option>Cozinha</option><option>Banheiro</option><option>Outros</option>
+        </select>
+      </div>
+      <div class="fg"><label>Unidade</label>
+        <select id="f-unit">
+          <option>un</option><option>kg</option><option>L</option>
+          <option>g</option><option>ml</option><option>cx</option><option>pct</option>
+        </select>
+      </div>
+    </div>
+    <div class="mbtns">
+      <button class="btn-c" onclick="closeModal()">Cancelar</button>
+      <button class="btn-d" id="del-btn" onclick="deleteItem()" style="display:none">🗑</button>
+      <button class="btn-p" onclick="saveItem()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="sincronizarTudo()" title="Sincronizar agora">↻</button>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxIwciGfeZ1TAPlt6T3lAhx99OI_6dBEB0_W2H_EHZaFXa7glnqxhsfeRNXSaG8ma2/exec';
+const CATS = ['Todos','Limpeza','Higiene','Mercearia','Cozinha','Banheiro','Outros'];
+const ITEMS_DEFAULT = [
+  {id:1,name:'Sabão em pó',qty:2,min:1,cat:'Limpeza',unit:'kg'},
+  {id:2,name:'Detergente',qty:1,min:2,cat:'Limpeza',unit:'un'},
+  {id:3,name:'Shampoo',qty:3,min:1,cat:'Higiene',unit:'un'},
+  {id:4,name:'Papel higiênico',qty:4,min:4,cat:'Higiene',unit:'un'},
+  {id:5,name:'Arroz',qty:2,min:1,cat:'Mercearia',unit:'kg'},
+  {id:6,name:'Feijão',qty:1,min:1,cat:'Mercearia',unit:'kg'},
+  {id:7,name:'Azeite',qty:0,min:1,cat:'Cozinha',unit:'un'},
+  {id:8,name:'Café',qty:2,min:2,cat:'Mercearia',unit:'un'},
+];
+
+let scriptUrl = localStorage.getItem('estoque_script_url') || SCRIPT_URL;
+let sheetUrl  = localStorage.getItem('estoque_sheet_url') || '';
+let items     = JSON.parse(localStorage.getItem('estoque_items') || 'null') || ITEMS_DEFAULT;
+let nextId    = Math.max(...items.map(i=>i.id), 0) + 1;
+let editId    = null;
+let filterCat = 'Todos';
+let syncTimer = null;
+let isSyncing = false;
+
+// ── Utilitários ──────────────────────────────────────────
+function isLow(i){ return i.qty <= i.min; }
+
+function saveLocal(){
+  localStorage.setItem('estoque_items', JSON.stringify(items));
+  localStorage.setItem('estoque_script_url', scriptUrl);
+}
+
+function setSyncStatus(state, txt){
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (state==='ok' ? '' : state==='loading' ? ' loading' : ' err');
+  document.getElementById('sync-txt').textContent = txt;
+}
+
+function setLoading(show, msg=''){
+  const b = document.getElementById('loading-banner');
+  b.classList.toggle('hidden', !show);
+  if(msg) document.getElementById('loading-msg').textContent = msg;
+  const fab = document.getElementById('fab');
+  fab.classList.toggle('spin-anim', show);
+  isSyncing = show;
+}
+
+function hora(){
+  const n = new Date();
+  return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+
+// ── Render ───────────────────────────────────────────────
+function renderStats(){
+  const low   = items.filter(isLow).length;
+  const repor = items.filter(i=>i.qty===0).length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-lbl">Em falta</div><div class="stat-val ${low>0?'warn':''}">${low}</div></div>
+    <div class="stat"><div class="stat-lbl">Zerado</div><div class="stat-val ${repor>0?'warn':''}">${repor}</div></div>
+    <div class="stat"><div class="stat-lbl">Total</div><div class="stat-val">${items.length}</div></div>`;
+}
+
+function renderFilters(){
+  document.getElementById('filters').innerHTML = CATS.map(c=>
+    `<button class="chip ${filterCat===c?'active':''}" onclick="filterCat='${c}';renderFilters();renderList()">${c}</button>`
+  ).join('');
+}
+
+function renderList(){
+  let list = items.filter(i => filterCat==='Todos' || i.cat===filterCat);
+  list.sort((a,b) => (isLow(a)?0:1)-(isLow(b)?0:1));
+  const low = list.filter(isLow).length;
+  document.getElementById('count-lbl').textContent =
+    `${list.length} item${list.length!==1?'s':''}${low>0?' · '+low+' em falta':''}`;
+  document.getElementById('items-list').innerHTML = list.length===0
+    ? '<div class="empty">Nenhum item nesta categoria</div>'
+    : list.map(i=>`
+      <div class="card ${isLow(i)?'low':'ok'}" onclick="openModal(${i.id})">
+        <div class="card-top">
+          <span class="item-name">${i.name}</span>
+          <div class="qty-row" onclick="event.stopPropagation()">
+            <button class="qb" onclick="changeQty(${i.id},-1)">−</button>
+            <span class="qn">${i.qty}</span>
+            <button class="qb" onclick="changeQty(${i.id},1)">+</button>
+          </div>
+        </div>
+        <div class="meta">
+          <span class="bdg bdg-cat">${i.cat}</span>
+          <span>${i.unit} · mín ${i.min}</span>
+          <span class="bdg ${isLow(i)?'bdg-low':'bdg-ok'}">${isLow(i)?'⚠ baixo':'✓ ok'}</span>
+        </div>
+      </div>`).join('');
+  renderStats();
+}
+
+// ── Sincronização ─────────────────────────────────────────
+
+// LEITURA: carrega os dados da planilha
+async function carregarDaPlanilha(){
+  if(isSyncing) return;
+  setLoading(true, 'Carregando estoque da planilha...');
+  setSyncStatus('loading', 'Carregando...');
+  try {
+    const res  = await fetch(scriptUrl + '?action=load', { method: 'GET' });
+    const data = await res.json();
+    if(data.ok && data.items && data.items.length > 0){
+      items  = data.items;
+      nextId = Math.max(...items.map(i=>i.id), 0) + 1;
+      saveLocal();
+      renderFilters();
+      renderList();
+      setSyncStatus('ok', `Atualizado às ${hora()}`);
+    } else if(data.ok && data.items && data.items.length===0){
+      // Planilha vazia — envia os dados locais
+      await enviarParaPlanilha();
+    } else {
+      setSyncStatus('err', 'Erro ao carregar: ' + (data.error||'desconhecido'));
+    }
+  } catch(e){
+    setSyncStatus('err', 'Sem conexão');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ESCRITA: envia os dados para a planilha
+async function enviarParaPlanilha(){
+  setSyncStatus('loading', 'Salvando...');
+  try {
+    const payload = {
+      action: 'sync',
+      items: items.map(i=>({
+        id: i.id, name: i.name, qty: i.qty,
+        unit: i.unit, min: i.min, cat: i.cat,
+        status: isLow(i) ? 'Repor' : 'Ok'
+      }))
+    };
+    const res  = await fetch(scriptUrl, { method:'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if(data.ok){
+      setSyncStatus('ok', `Salvo às ${hora()}`);
+      if(data.sheetUrl){
+        sheetUrl = data.sheetUrl;
+        localStorage.setItem('estoque_sheet_url', sheetUrl);
+      }
+    } else {
+      setSyncStatus('err', 'Erro: '+(data.error||'desconhecido'));
+    }
+  } catch(e){
+    setSyncStatus('err', 'Falha ao salvar');
+  }
+}
+
+// Sincronização completa (FAB)
+async function sincronizarTudo(){
+  if(isSyncing) return;
+  setLoading(true, 'Sincronizando...');
+  await enviarParaPlanilha();
+  setLoading(false);
+}
+
+function debouncedSync(){ clearTimeout(syncTimer); syncTimer = setTimeout(enviarParaPlanilha, 3000); }
+
+// ── Interações ────────────────────────────────────────────
+function changeQty(id, delta){
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  item.qty = Math.max(0, item.qty+delta);
+  saveLocal();
+  renderList();
+  debouncedSync();
+}
+
+function openModal(id){
+  editId = id || null;
+  document.getElementById('modal-title').textContent = id ? 'Editar item' : 'Adicionar item';
+  document.getElementById('del-btn').style.display   = id ? 'block' : 'none';
+  if(id){
+    const item = items.find(i=>i.id===id);
+    document.getElementById('f-name').value = item.name;
+    document.getElementById('f-qty').value  = item.qty;
+    document.getElementById('f-min').value  = item.min;
+    document.getElementById('f-cat').value  = item.cat;
+    document.getElementById('f-unit').value = item.unit;
+  } else {
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-qty').value  = 1;
+    document.getElementById('f-min').value  = 1;
+    document.getElementById('f-cat').value  = 'Limpeza';
+    document.getElementById('f-unit').value = 'un';
+  }
+  document.getElementById('modal').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),150);
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function saveItem(){
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ alert('Digite o nome do item'); return; }
+  const data = {
+    name, qty: parseInt(document.getElementById('f-qty').value)||0,
+    min: parseInt(document.getElementById('f-min').value)||1,
+    cat: document.getElementById('f-cat').value,
+    unit: document.getElementById('f-unit').value
+  };
+  if(editId){ Object.assign(items.find(i=>i.id===editId), data); }
+  else { items.push({id:nextId++, ...data}); }
+  closeModal();
+  saveLocal();
+  renderList();
+  debouncedSync();
+}
+
+function deleteItem(){
+  if(!confirm('Remover este item?')) return;
+  items = items.filter(i=>i.id!==editId);
+  closeModal();
+  saveLocal();
+  renderList();
+  debouncedSync();
+}
+
+function switchTab(tab){
+  ['lista','config'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===tab?'':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>
+    el.classList.toggle('active', ['lista','config'][i]===tab)
+  );
+  document.getElementById('fab').style.display = tab==='lista' ? 'flex' : 'none';
+}
+
+function abrirPlanilha(){
+  if(sheetUrl) window.open(sheetUrl,'_blank');
+  else alert('Sincronize primeiro para obter o link da planilha.');
+}
+
+function trocarUrl(){
+  const nova = document.getElementById('script-url-input').value.trim();
+  if(!nova){ document.getElementById('url-status').innerHTML='<div class="notice err">Cole a URL primeiro</div>'; return; }
+  scriptUrl = nova;
+  saveLocal();
+  document.getElementById('url-status').innerHTML='<div class="notice ok">✓ URL salva! Recarregando...</div>';
+  setTimeout(()=>carregarDaPlanilha(), 1000);
+}
+
+const SCRIPT_CODE = `// ============================================
+// ESTOQUE DA CASA — Google Apps Script v2
+// Suporta LEITURA e ESCRITA
+// ============================================
+
+const SHEET_NAME = 'Estoque';
+
+function doGet(e) {
+  if (e.parameter.action === 'load') {
+    return carregarItens();
+  }
+  return response({ ok: true, msg: 'Script ativo' });
+}
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    if (data.action === 'sync' && data.items) {
+      return salvarItens(data.items);
+    }
+    return response({ ok: false, error: 'Ação desconhecida' });
+  } catch (err) {
+    return response({ ok: false, error: err.toString() });
+  }
+}
+
+function carregarItens() {
+  try {
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet || sheet.getLastRow() < 2) {
+      return response({ ok: true, items: [] });
+    }
+    const rows  = sheet.getRange(2, 1, sheet.getLastRow()-1, 7).getValues();
+    const items = rows
+      .filter(r => r[0])
+      .map((r, i) => ({
+        id:   i + 1,
+        name: r[0],
+        qty:  Number(r[1]) || 0,
+        unit: r[2] || 'un',
+        min:  Number(r[3]) || 1,
+        cat:  r[4] || 'Outros',
+        status: r[5] || 'Ok'
+      }));
+    return response({ ok: true, items });
+  } catch(err) {
+    return response({ ok: false, error: err.toString() });
+  }
+}
+
+function salvarItens(items) {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet   = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+  sheet.clearContents();
+  sheet.appendRow(['Nome','Quantidade','Unidade','Mínimo','Categoria','Status','Atualizado em']);
+
+  const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  items.forEach(item => {
+    sheet.appendRow([item.name, item.qty, item.unit, item.min, item.cat, item.status, now]);
+  });
+
+  // Estilo cabeçalho
+  const hdr = sheet.getRange(1,1,1,7);
+  hdr.setFontWeight('bold');
+  hdr.setBackground('#E8F0FE');
+
+  // Linhas para repor em rosa
+  items.forEach((item, i) => {
+    if (item.status === 'Repor') {
+      sheet.getRange(i+2,1,1,7).setBackground('#FDE8E8');
+    }
+  });
+
+  sheet.autoResizeColumns(1,7);
+  return response({ ok: true, sheetUrl: ss.getUrl() });
+}
+
+function response(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function copyScript(){
+  navigator.clipboard.writeText(SCRIPT_CODE).then(()=>{
+    document.getElementById('copy-status').innerHTML='<div class="notice ok">✓ Código copiado!</div>';
+  }).catch(()=>{
+    document.getElementById('copy-status').innerHTML='<div class="notice err">Não foi possível copiar automaticamente.</div>';
+  });
+}
+
+// Fechar modal ao clicar fora
+document.getElementById('modal').addEventListener('click', function(e){
+  if(e.target===this) closeModal();
+});
+
+// ── Inicialização ─────────────────────────────────────────
+renderFilters();
+renderList();
+setSyncStatus('loading', 'Carregando da planilha...');
+
+// Ao abrir: carrega sempre da planilha (dados em tempo real)
+carregarDaPlanilha();
+</script>
+</body>
+</html>
