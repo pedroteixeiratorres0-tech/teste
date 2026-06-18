@@ -122,7 +122,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <button class="tab" onclick="switchTab('config')">Configurar</button>
 </div>
 
-<!-- ABA ESTOQUE -->
 <div id="tab-lista">
   <div class="loading-banner hidden" id="loading-banner">
     <div class="spinner"></div>
@@ -137,7 +136,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="items" id="items-list"></div>
 </div>
 
-<!-- ABA CONFIG -->
 <div id="tab-config" style="display:none">
   <div class="script-wrap">
     <div class="scard" style="border-color:#9FE1CB;background:#F0FBF7">
@@ -167,7 +165,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <h3>🔧 URL do script</h3>
       <p>URL atual configurada:</p>
       <div style="background:#f5f5f5;border-radius:8px;padding:8px 10px;font-size:11px;font-family:monospace;word-break:break-all;color:#555;margin-bottom:8px">
-        https://script.google.com/macros/s/AKfycbyxIwciGfeZ1TAPlt6T3lAhx99OI_6dBEB0_W2H_EHZaFXa7glnqxhsfeRNXSaG8ma2/exec
+  https://script.google.com/macros/s/AKfycbwvee6Q0S0PiuBHAoo-fF8bpz6ZPZ64ttu9IcxsUPsKM44pupSZAJnDgWpdjw1RfgPM/exec
       </div>
       <input type="url" id="script-url-input" placeholder="Colar nova URL se precisar trocar..." style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:13px;margin-bottom:8px">
       <button class="sbtn green" onclick="trocarUrl()">Salvar nova URL</button>
@@ -176,7 +174,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-<!-- MODAL ITEM -->
 <div class="overlay" id="modal">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -208,11 +205,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-<!-- FAB -->
 <button class="fab" id="fab" onclick="sincronizarTudo()" title="Sincronizar agora">↻</button>
 
 <script>
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxIwciGfeZ1TAPlt6T3lAhx99OI_6dBEB0_W2H_EHZaFXa7glnqxhsfeRNXSaG8ma2/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvee6Q0S0PiuBHAoo-fF8bpz6ZPZ64ttu9IcxsUPsKM44pupSZAJnDgWpdjw1RfgPM/exec';
+const OLD_URL = 'https://script.google.com/macros/s/AKfycbyxIwciGfeZ1TAPlt6T3lAhx99OI_6dBEB0_W2H_EHZaFXa7glnqxhsfeRNXSaG8ma2/exec';
+
+// Se o usuário ainda tiver a URL velha no cache do navegador, a limpamos para forçar o uso da nova:
+if (localStorage.getItem('estoque_script_url') === OLD_URL) {
+  localStorage.removeItem('estoque_script_url');
+}
+
 const CATS = ['Todos','Limpeza','Higiene','Mercearia','Cozinha','Banheiro','Outros'];
 const ITEMS_DEFAULT = [
   {id:1,name:'Sabão em pó',qty:2,min:1,cat:'Limpeza',unit:'kg'},
